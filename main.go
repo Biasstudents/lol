@@ -6,23 +6,25 @@ import (
 	"bufio"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 	"github.com/valyala/fasthttp"
 )
 
 func main() {
-	var wg sync.WaitGroup
-
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter URL: ")
-	url, _ := reader.ReadString('\n')
+	urlBytes, _, _ := reader.ReadLine()
+	url := string(urlBytes)
 
 	fmt.Print("Enter number of threads: ")
-	threads, _ := reader.ReadString('\n')
-	numThreads, _ := strconv.Atoi(threads)
+	threadBytes, _, _ := reader.ReadLine()
+	numThreads, _ := strconv.Atoi(strings.TrimSpace(string(threadBytes)))
+
+	var wg sync.WaitGroup
+	wg.Add(numThreads)
 
 	for i := 0; i < numThreads; i++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			req := fasthttp.AcquireRequest()
@@ -46,26 +48,26 @@ func main() {
 	}
 
 	go func() {
-		req := fasthttp.AcquireRequest()
-		resp := fasthttp.AcquireResponse()
+		reqStatus := fasthttp.AcquireRequest()
+		respStatus := fasthttp.AcquireResponse()
 		defer func() {
-			fasthttp.ReleaseRequest(req)
-			fasthttp.ReleaseResponse(resp)
+			fasthttp.ReleaseRequest(reqStatus)
+			fasthttp.ReleaseResponse(respStatus)
 		}()
 
-		req.Header.SetMethod("HEAD")
-		req.SetRequestURI(url)
+		reqStatus.Header.SetMethod("HEAD")
+		reqStatus.SetRequestURI(url)
 
 		for {
+			time.Sleep(10 * time.Second)
 			start := time.Now()
-			err := fasthttp.Do(req, resp)
+			err := fasthttp.Do(reqStatus, respStatus)
 			duration := time.Since(start)
 			if err != nil {
 				fmt.Println("Website is down")
 			} else {
 				fmt.Printf("Website is up (response time: %s)\n", duration)
 			}
-			time.Sleep(10 * time.Second)
 		}
 	}()
 
