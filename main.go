@@ -12,6 +12,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type ErrorState struct {
+	sync.Once
+	printed bool
+}
+
+var printedErrors = struct{
+	sync.RWMutex
+	m map[string]*ErrorState
+}{m: make(map[string]*ErrorState)}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter URL: ")
@@ -48,8 +58,23 @@ func main() {
 			for {
 				err := client.Do(req, resp)
 				if err != nil {
-					fmt.Println(err)
-					return
+					errMsg := err.Error()
+					printedErrors.Lock()
+					state, ok := printedErrors.m[errMsg]
+					if !ok {
+						state = &ErrorState{}
+						printedErrors.m[errMsg] = state
+					}
+					printedErrors.Unlock()
+
+					state.Do(func() {
+						fmt.Println(errMsg)
+						state.printed = true
+					})
+
+					if state.printed {
+						return
+					}
 				}
 			}
 		}()
