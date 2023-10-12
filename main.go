@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -24,6 +25,13 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
+	client := &fasthttp.Client{
+		MaxIdleConnDuration: 10 * time.Second,
+		ReadTimeout:         10 * time.Second,
+		WriteTimeout:        10 * time.Second,
+		MaxConnsPerHost:     10000,
+	}
+
 	for i := 0; i < numThreads; i++ {
 		go func() {
 			defer wg.Done()
@@ -38,7 +46,7 @@ func main() {
 			req.SetRequestURI(url)
 
 			for {
-				err := fasthttp.Do(req, resp)
+				err := client.Do(req, resp)
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -61,7 +69,7 @@ func main() {
 		for {
 			time.Sleep(10 * time.Second)
 			start := time.Now()
-			err := fasthttp.Do(reqStatus, respStatus)
+			err := client.Do(reqStatus, respStatus)
 			duration := time.Since(start)
 			if err != nil {
 				fmt.Println("Website is down")
