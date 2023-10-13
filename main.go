@@ -46,7 +46,7 @@ func main() {
 			req.SetRequestURI(url)
 
 			for {
-				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") {
+				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") {
 					fmt.Println(err.Error())
 				}
 			}
@@ -69,7 +69,7 @@ func main() {
 			start := time.Now()
 			err := client.Do(reqStatus, respStatus)
 			duration := time.Since(start)
-			if err != nil && !strings.Contains(err.Error(), "i/o timeout") {
+			if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") {
 				fmt.Println("Website is down")
 			} else {
 				fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
