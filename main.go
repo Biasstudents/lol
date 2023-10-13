@@ -13,18 +13,18 @@ import (
 )
 
 var errorLock = sync.Mutex{}
-var errorCond = sync.NewCond(&errorLock)
 var lastError string
+var lastErrorTime time.Time
 
 func printError(errMsg string) {
 	errorLock.Lock()
-	for errMsg == lastError {
-		errorCond.Wait()
+	defer errorLock.Unlock()
+	now := time.Now()
+	if errMsg != lastError || now.Sub(lastErrorTime) > 5*time.Second {
+		fmt.Println(errMsg)
+		lastError = errMsg
+		lastErrorTime = now
 	}
-	fmt.Println(errMsg)
-	lastError = errMsg
-	errorCond.Broadcast()
-	errorLock.Unlock()
 }
 
 func main() {
@@ -70,29 +70,29 @@ func main() {
 		}()
 	}
 
-	go func() {
-		reqStatus := fasthttp.AcquireRequest()
-		respStatus := fasthttp.AcquireResponse()
-		defer func() {
-			fasthttp.ReleaseRequest(reqStatus)
-			fasthttp.ReleaseResponse(respStatus)
-		}()
-
-		reqStatus.Header.SetMethod("HEAD")
-		reqStatus.SetRequestURI(url)
-
-		for {
-			time.Sleep(10 * time.Second)
-			start := time.Now()
-			err := client.Do(reqStatus, respStatus)
-			duration := time.Since(start)
-			if err != nil {
-				fmt.Println("Website is down")
-			} else {
-				fmt.Printf("Website is up (response time: %s)\n", duration)
-			}
-		}
+go func() {
+	reqStatus := fasthttp.AcquireRequest()
+	respStatus := fasthttp.AcquireResponse()
+	defer func() {
+		fasthttp.ReleaseRequest(reqStatus)
+		fasthttp.ReleaseResponse(respStatus)
 	}()
+
+	reqStatus.Header.SetMethod("GET")
+	reqStatus.SetRequestURI(url)
+
+	for {
+		time.Sleep(10 * time.Second)
+		start := time.Now()
+		err := client.Do(reqStatus, respStatus)
+		duration := time.Since(start)
+		if err != nil {
+			fmt.Println("Website is down")
+		} else {
+			fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
+		}
+	}
+}()
 
 	wg.Wait()
 }
