@@ -12,21 +12,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var errorLock = sync.Mutex{}
-var lastError string
-var lastErrorTime time.Time
-
-func printError(errMsg string) {
-	errorLock.Lock()
-	defer errorLock.Unlock()
-	now := time.Now()
-	if errMsg != lastError || now.Sub(lastErrorTime) > 5*time.Second {
-		fmt.Println(errMsg)
-		lastError = errMsg
-		lastErrorTime = now
-	}
-}
-
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter URL: ")
@@ -61,38 +46,36 @@ func main() {
 			req.SetRequestURI(url)
 
 			for {
-				err := client.Do(req, resp)
-				if err != nil {
-					printError(err.Error())
-					return
+				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") {
+					fmt.Println(err.Error())
 				}
 			}
 		}()
 	}
 
-go func() {
-	reqStatus := fasthttp.AcquireRequest()
-	respStatus := fasthttp.AcquireResponse()
-	defer func() {
-		fasthttp.ReleaseRequest(reqStatus)
-		fasthttp.ReleaseResponse(respStatus)
-	}()
+	go func() {
+		reqStatus := fasthttp.AcquireRequest()
+		respStatus := fasthttp.AcquireResponse()
+		defer func() {
+			fasthttp.ReleaseRequest(reqStatus)
+			fasthttp.ReleaseResponse(respStatus)
+		}()
 
-	reqStatus.Header.SetMethod("GET")
-	reqStatus.SetRequestURI(url)
+		reqStatus.Header.SetMethod("GET")
+		reqStatus.SetRequestURI(url)
 
-	for {
-		time.Sleep(10 * time.Second)
-		start := time.Now()
-		err := client.Do(reqStatus, respStatus)
-		duration := time.Since(start)
-		if err != nil {
-			fmt.Println("Website is down")
-		} else {
-			fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
+		for {
+			time.Sleep(10 * time.Second)
+			start := time.Now()
+			err := client.Do(reqStatus, respStatus)
+			duration := time.Since(start)
+			if err != nil && !strings.Contains(err.Error(), "i/o timeout") {
+				fmt.Println("Website is down")
+			} else {
+				fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
+			}
 		}
-	}
-}()
+	}()
 
 	wg.Wait()
 }
