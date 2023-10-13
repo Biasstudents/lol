@@ -44,7 +44,7 @@ func main() {
 		MaxIdleConnDuration: 10 * time.Second,
 		ReadTimeout:         10 * time.Second,
 		WriteTimeout:        10 * time.Second,
-		MaxConnsPerHost:     10000,
+		MaxConnsPerHost:     100000,
 	}
 
 	for i := 0; i < numThreads; i++ {
