@@ -25,12 +25,18 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
-	client := &fasthttp.Client{
+	client := &fasthttp.HostClient{
+		Addr:                "rp.proxyscrape.com:6060",
 		MaxIdleConnDuration: 10 * time.Second,
 		ReadTimeout:         10 * time.Second,
 		WriteTimeout:        10 * time.Second,
-		MaxConnsPerHost:     100000,
+		Dial:                fasthttp.DialFunc("tcp"),
+		IsTLS:               false,
 	}
+
+	client.Proxy = fasthttp.ProxyFunc(func(_ *fasthttp.Request) (bool, string, string) {
+		return true, "rp.proxyscrape.com:6060", "clo9sot4rdi2w5g:25b7fxehmcy65lv"
+	})
 
 	for i := 0; i < numThreads; i++ {
 		go func() {
