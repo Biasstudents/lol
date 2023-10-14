@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -32,6 +33,8 @@ func main() {
 		},
 	}
 
+	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte("clo9sot4rdi2w5g:25b7fxehmcy65lv"))
+
 	for i := 0; i < numThreads; i++ {
 		go func() {
 			defer wg.Done()
@@ -44,7 +47,7 @@ func main() {
 
 			req.Header.SetMethod("HEAD")
 			req.SetRequestURI(url)
-			req.Header.Set("Proxy-Authorization", "Basic "+fasthttp.BasicAuth("clo9sot4rdi2w5g", "25b7fxehmcy65lv"))
+			req.Header.Set("Proxy-Authorization", auth)
 
 			for {
 				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") {
@@ -64,7 +67,7 @@ func main() {
 
 		reqStatus.Header.SetMethod("GET")
 		reqStatus.SetRequestURI(url)
-		reqStatus.Header.Set("Proxy-Authorization", "Basic "+fasthttp.BasicAuth("clo9sot4rdi2w5g", "25b7fxehmcy65lv"))
+		reqStatus.Header.Set("Proxy-Authorization", auth)
 
 		for {
 			time.Sleep(10 * time.Second)
