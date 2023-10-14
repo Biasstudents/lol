@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"sync"
 	"bufio"
+	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -25,18 +26,11 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
-	client := &fasthttp.HostClient{
-		Addr:                "rp.proxyscrape.com:6060",
-		MaxIdleConnDuration: 10 * time.Second,
-		ReadTimeout:         10 * time.Second,
-		WriteTimeout:        10 * time.Second,
-		Dial:                fasthttp.DialFunc("tcp"),
-		IsTLS:               false,
+	client := &fasthttp.Client{
+		Dial: func(addr string) (net.Conn, error) {
+			return fasthttp.DialTimeout("rp.proxyscrape.com:6060", time.Second*10)
+		},
 	}
-
-	client.Proxy = fasthttp.ProxyFunc(func(_ *fasthttp.Request) (bool, string, string) {
-		return true, "rp.proxyscrape.com:6060", "clo9sot4rdi2w5g:25b7fxehmcy65lv"
-	})
 
 	for i := 0; i < numThreads; i++ {
 		go func() {
@@ -50,6 +44,7 @@ func main() {
 
 			req.Header.SetMethod("HEAD")
 			req.SetRequestURI(url)
+			req.Header.Set("Proxy-Authorization", "Basic "+fasthttp.BasicAuth("clo9sot4rdi2w5g", "25b7fxehmcy65lv"))
 
 			for {
 				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") {
@@ -69,6 +64,7 @@ func main() {
 
 		reqStatus.Header.SetMethod("GET")
 		reqStatus.SetRequestURI(url)
+		reqStatus.Header.Set("Proxy-Authorization", "Basic "+fasthttp.BasicAuth("clo9sot4rdi2w5g", "25b7fxehmcy65lv"))
 
 		for {
 			time.Sleep(10 * time.Second)
