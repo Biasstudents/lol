@@ -14,6 +14,10 @@ import (
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter HTTP method (HEAD or GET): ")
+	methodBytes, _, _ := reader.ReadLine()
+	method := strings.ToUpper(strings.TrimSpace(string(methodBytes)))
+
 	fmt.Print("Enter URL: ")
 	urlBytes, _, _ := reader.ReadLine()
 	url := string(urlBytes)
@@ -42,11 +46,12 @@ func main() {
 				fasthttp.ReleaseResponse(resp)
 			}()
 
-			req.Header.SetMethod("HEAD")
+			req.Header.SetMethod(method)
 			req.SetRequestURI(url)
 
 			for {
-				if err := client.Do(req, resp); err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") {
+				err := client.Do(req, resp)
+				if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
 					fmt.Println(err.Error())
 				}
 			}
@@ -61,7 +66,7 @@ func main() {
 			fasthttp.ReleaseResponse(respStatus)
 		}()
 
-		reqStatus.Header.SetMethod("GET")
+		reqStatus.Header.SetMethod(method)
 		reqStatus.SetRequestURI(url)
 
 		for {
@@ -69,7 +74,7 @@ func main() {
 			start := time.Now()
 			err := client.Do(reqStatus, respStatus)
 			duration := time.Since(start)
-			if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") {
+			if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
 				fmt.Println("Website is down")
 			} else {
 				fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
