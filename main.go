@@ -40,17 +40,14 @@ func main() {
 		go func() {
 			defer wg.Done()
 			req := fasthttp.AcquireRequest()
-			resp := fasthttp.AcquireResponse()
-			defer func() {
-				fasthttp.ReleaseRequest(req)
-				fasthttp.ReleaseResponse(resp)
-			}()
+			defer fasthttp.ReleaseRequest(req)
 
 			req.Header.SetMethod(method)
+			req.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 			req.SetRequestURI(url)
 
 			for {
-				err := client.Do(req, resp)
+				err := client.Do(req, nil)
 				if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
 					fmt.Println(err.Error())
 				}
@@ -67,20 +64,21 @@ func main() {
 		}()
 
 		reqStatus.Header.SetMethod(method)
-		reqStatus.SetRequestURI(url)
+        reqStatus.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
+        reqStatus.SetRequestURI(url)
 
-		for {
-			time.Sleep(10 * time.Second)
-			start := time.Now()
-			err := client.Do(reqStatus, respStatus)
-			duration := time.Since(start)
-			if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
-				fmt.Println("Website is down")
-			} else {
-				fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
-			}
-		}
-	}()
+        for {
+            time.Sleep(10 * time.Second)
+            start := time.Now()
+            err := client.Do(reqStatus, respStatus)
+            duration := time.Since(start)
+            if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
+                fmt.Println("Website is down")
+            } else {
+                fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
+            }
+        }
+    }()
 
 	wg.Wait()
 }
