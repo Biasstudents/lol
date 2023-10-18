@@ -7,7 +7,7 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
-	data := make([]byte, 1024*1024) // 1 MB of data
+	data := make([]byte, 50024*50024) // 1 MB of data
 
 	for i := 0; i < 10000; i++ {
 		wg.Add(1)
