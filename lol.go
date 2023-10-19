@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/Allenxuxu/gev"
-	"github.com/Allenxuxu/gev/connection"
 	"log"
 	"sync"
 )
@@ -11,17 +10,17 @@ type exampleClient struct {
 	data []byte
 }
 
-func (s *exampleClient) OnConnect(c *connection.Connection) {
+func (s *exampleClient) OnConnect(c *gev.Connection) {
 	log.Println("OnConnect")
 	c.Send(s.data)
 }
 
-func (s *exampleClient) OnMessage(c *connection.Connection, ctx interface{}, data []byte) (out []byte) {
+func (s *exampleClient) OnMessage(c *gev.Connection, ctx interface{}, data []byte) (out []byte) {
 	log.Println("OnMessage")
 	return
 }
 
-func (s *exampleClient) OnClose(c *connection.Connection) {
+func (s *exampleClient) OnClose(c *gev.Connection) {
 	log.Println("OnClose")
 }
 
