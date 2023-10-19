@@ -32,11 +32,11 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			loop := eventloop.New()
-			client, err := gev.NewClient(loop, "193.228.196.49:80", &exampleClient{data: data}, nil)
+			loop, err := eventloop.New()
 			if err != nil {
-				log.Fatalln("NewClient failed:", err)
+				log.Fatalln("Failed to create event loop:", err)
 			}
+			client := gev.Connect(loop, "193.228.196.49:80", &exampleClient{data: data})
 			loop.Run()
 		}()
 	}
