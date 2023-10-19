@@ -37,6 +37,7 @@ func main() {
 			defer wg.Done()
 			conn, err := net.Dial("tcp", ipPort)
 			if err != nil {
+				fmt.Println("Dial error:", err)
 				return
 			}
 			defer conn.Close()
@@ -45,6 +46,7 @@ func main() {
 			for {
 				_, err := buf.WriteTo(conn) // Use buffer
 				if err != nil {
+					fmt.Println("WriteTo error:", err)
 					break
 				}
 			}
