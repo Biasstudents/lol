@@ -2,7 +2,8 @@ package main
 
 import (
 	"github.com/Allenxuxu/gev"
-	"github.com/Allenxuxu/gev/log"
+	"github.com/Allenxuxu/gev/eventloop"
+	"log"
 	"sync"
 )
 
@@ -10,17 +11,17 @@ type exampleClient struct {
 	data []byte
 }
 
-func (s *exampleClient) OnConnect(c *gev.Connection) {
-	log.Info("OnConnect")
+func (s *exampleClient) OnInitComplete(c *gev.Connection) {
+	log.Println("OnInitComplete")
 	c.Send(s.data)
 }
 
 func (s *exampleClient) OnMessage(c *gev.Connection, data []byte) {
-	log.Info("OnMessage")
+	log.Println("OnMessage")
 }
 
 func (s *exampleClient) OnClose(c *gev.Connection) {
-	log.Info("OnClose")
+	log.Println("OnClose")
 }
 
 func main() {
@@ -31,14 +32,12 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := gev.Dial("193.228.196.49:80", &exampleClient{data: data})
+			loop := eventloop.New()
+			client, err := gev.NewClient(loop, "193.228.196.49:80", &exampleClient{data: data}, nil)
 			if err != nil {
-				log.Fatalln("Dial failed:", err)
+				log.Fatalln("NewClient failed:", err)
 			}
-
-			for {
-				client.Send(data)
-			}
+			loop.Run()
 		}()
 	}
 
