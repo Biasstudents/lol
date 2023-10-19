@@ -36,7 +36,8 @@ func main() {
 			if err != nil {
 				log.Fatalln("Failed to create event loop:", err)
 			}
-			client := gev.Connect(loop, "193.228.196.49:80", &exampleClient{data: data})
+			connector := gev.NewConnector(loop, "193.228.196.49:80", &exampleClient{data: data}, nil)
+			connector.Start()
 			loop.Run()
 		}()
 	}
