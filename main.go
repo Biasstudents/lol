@@ -45,12 +45,10 @@ func main() {
 			req.Header.SetMethod(method)
 			req.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 			req.SetRequestURI(url)
+            req.SetConnectionClose() // Disable keep-alive
 
 			for {
-				err := client.Do(req, nil)
-				if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
-					fmt.Println(err.Error())
-				}
+				client.Do(req, nil)
 			}
 		}()
 	}
