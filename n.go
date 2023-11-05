@@ -4,13 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/net/proxy"
 )
