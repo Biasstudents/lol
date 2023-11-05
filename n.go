@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,20 +59,15 @@ func main() {
 				proxyIndex := i % len(proxies)
 				proxyStr := proxies[proxyIndex]
 
-				var dialFunc func(network, addr string) (c net.Conn, err error)
+				var httpTransport *http.Transport
 				if i < len(socks5Proxies) { // This is a SOCKS5 proxy
 					dialer, _ := proxy.SOCKS5("tcp", proxyStr, nil, proxy.Direct)
-					dialFunc = dialer.Dial
+					httpTransport = &http.Transport{Dial: dialer.Dial}
 				} else { // This is an HTTPS proxy
 					proxyUrl, _ := url.Parse("http://" + proxyStr)
-					httpProxy := http.ProxyURL(proxyUrl)
-					dialFunc = func(network, addr string) (net.Conn, error) {
-						proxy, _ := httpProxy(&http.Request{})
-						return proxy.Dial(network, addr)
-					}
+					httpTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 				}
 
-				httpTransport := &http.Transport{Dial: dialFunc}
 				client := &http.Client{Transport: httpTransport}
 
 				req, _ := http.NewRequest(method, requestUrl, nil)
