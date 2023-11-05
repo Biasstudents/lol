@@ -60,16 +60,13 @@ func main() {
 				proxyIndex := i % len(proxies)
 				proxyStr := proxies[proxyIndex]
 
-				var dialFunc func(network, addr string) (c net.Conn, err error)
-				if i < len(socks5Proxies) { // This is a SOCKS5 proxy
-					dialer, _ := proxy.SOCKS5("tcp", proxyStr, nil, proxy.Direct)
-					dialFunc = dialer.Dial
-				} else { // This is an HTTPS proxy
-					proxyUrl, _ := url.Parse("http://" + proxyStr)
-					dialFunc = func(network, addr string) (net.Conn, error) {
-						proxy, _ := http.ProxyFromEnvironment(&http.Request{URL: proxyUrl})
-						return proxy.Dial(network, addr)
-					}
+				dialFunc = func(network, addr string) (net.Conn, error) {
+    httpProxy := http.ProxyURL(proxyUrl)
+    proxy, _ := httpProxy(&http.Request{})
+    return proxy.Dial(network, addr)
+}
+
+
 				}
 
 				httpTransport := &http.Transport{Dial: dialFunc}
