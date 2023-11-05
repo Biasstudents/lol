@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -49,15 +49,12 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
 
-	proxyUsage := make([]int, len(proxies))
-
 	for i := 0; i < numThreads; i++ {
 		go func(i int) {
 			defer wg.Done()
 
 			for {
-				proxyIndex := i % len(proxies)
-				proxyStr := proxies[proxyIndex]
+				proxyStr := proxies[i%len(proxies)]
 
 				var dialFunc func(network, addr string) (c net.Conn, err error)
 				if i < len(socks5Proxies) { // This is a SOCKS5 proxy
@@ -80,30 +77,13 @@ func main() {
 				_, err := client.Do(req)
 				if err != nil {
 					fmt.Printf("Proxy %s disconnected, error: %s\n", proxyStr, err)
-					// Try to reconnect to the same proxy
-					time.Sleep(2 * time.Second)
-					_, err := client.Do(req)
-					if err != nil {
-						fmt.Printf("Reconnection to proxy %s failed, error: %s\n", proxyStr, err)
-						// Change to a different proxy
-						minUsage := proxyUsage[0]
-						minIndex := 0
-						for i, usage := range proxyUsage {
-							if usage < minUsage {
-								minUsage = usage
-								minIndex = i
-							}
-						}
-						proxyIndex = minIndex
-						proxyStr = proxies[proxyIndex]
-						fmt.Printf("Switching to a new proxy: %s\n", proxyStr)
-					}
+					// Change to a different proxy
+					proxyStr = proxies[(i+1)%len(proxies)]
+					continue
 				}
-				proxyUsage[proxyIndex]++
 			}
 		}(i)
 	}
 
 	wg.Wait()
 }
-
