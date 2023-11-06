@@ -11,7 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
+	"golang.org/x/net/proxy"
 )
 
 func main() {
@@ -28,12 +29,22 @@ func main() {
 	threadBytes, _, _ := reader.ReadLine()
 	numThreads, _ := strconv.Atoi(strings.TrimSpace(string(threadBytes)))
 
-	// Read proxies from file
-	proxyBytes, _ := ioutil.ReadFile("proxies.txt")
-	proxies := strings.Split(strings.TrimSpace(string(proxyBytes)), "\n")
-	if len(proxies) == 1 && proxies[0] == "" {
-		proxies = []string{}
+	// Read SOCKS5 proxies from file
+	socks5Bytes, _ := ioutil.ReadFile("socks5.txt")
+	socks5Proxies := strings.Split(strings.TrimSpace(string(socks5Bytes)), "\n")
+	if len(socks5Proxies) == 1 && socks5Proxies[0] == "" {
+		socks5Proxies = []string{}
 	}
+
+	// Read HTTPS proxies from file
+	httpsBytes, _ := ioutil.ReadFile("https.txt")
+	httpsProxies := strings.Split(strings.TrimSpace(string(httpsBytes)), "\n")
+	if len(httpsProxies) == 1 && httpsProxies[0] == "" {
+		httpsProxies = []string{}
+	}
+
+	// Combine both lists of proxies
+	proxies := append(socks5Proxies, httpsProxies...)
 
 	var wg sync.WaitGroup
 	wg.Add(numThreads)
@@ -48,8 +59,15 @@ func main() {
 				proxyIndex := i % len(proxies)
 				proxyStr := proxies[proxyIndex]
 
-				proxyUrl, _ := url.Parse("https://" + proxyStr)
-				httpTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+				var httpTransport *http.Transport
+				if i < len(socks5Proxies) { // This is a SOCKS5 proxy
+					dialer, _ := proxy.SOCKS5("tcp", proxyStr, nil, proxy.Direct)
+					httpTransport = &http.Transport{Dial: dialer.Dial}
+				} else { // This is an HTTPS proxy
+					proxyUrl, _ := url.Parse("http://" + proxyStr)
+					httpTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+				}
+
 				client := &http.Client{Transport: httpTransport}
 
 				req, _ := http.NewRequest(method, requestUrl, nil)
