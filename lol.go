@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"syscall"
-	"time"
 	"net"
 	"encoding/binary"
 	"strconv"
