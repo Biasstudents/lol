@@ -59,7 +59,6 @@ func sendPacket(destIP net.IP, destPort int) {
 			fmt.Println("Failed to send SYN packet to", destIP.String(), ":", err)
 			return
 		}
-		time.Sleep(1 * time.Second)
 	}
 }
 
