@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	proxy "golang.org/x/net/proxy"
+	netproxy "golang.org/x/net/proxy"
 )
 
 type Proxy struct {
@@ -47,7 +47,7 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte, proxies []*Pr
 			continue
 		}
 
-		dialer, err := proxy.SOCKS5("tcp", proxy.address, nil, proxy.Direct())
+		dialer, err := netproxy.SOCKS5("tcp", proxy.address, nil, netproxy.Direct())
 		if err != nil {
 			log.Println(err)
 			proxy.fail()
