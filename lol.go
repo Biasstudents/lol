@@ -47,7 +47,7 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte, proxies []*Pr
 			continue
 		}
 
-		dialer, err := netproxy.SOCKS5("tcp", proxy.address, nil, netproxy.Direct())
+		dialer, err := netproxy.SOCKS5("tcp", proxy.address, nil, netproxy.Direct)
 		if err != nil {
 			log.Println(err)
 			proxy.fail()
