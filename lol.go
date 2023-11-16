@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"log"
 )
 
 func stressServer(address string, wg *sync.WaitGroup, data []byte) {
