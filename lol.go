@@ -43,13 +43,15 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte, proxies []*Pr
 	for {
 		proxy := proxies[i%len(proxies)]
 		if proxy.isFailed() {
+			log.Printf("Proxy %s has failed too many times, skipping...\n", proxy.address)
 			i++
 			continue
 		}
 
+		log.Printf("Attempting to connect to server %s using proxy %s...\n", address, proxy.address)
 		dialer, err := netproxy.SOCKS5("tcp", proxy.address, nil, netproxy.Direct)
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error creating dialer for proxy %s: %v\n", proxy.address, err)
 			proxy.fail()
 			i++
 			continue
@@ -57,20 +59,22 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte, proxies []*Pr
 
 		conn, err := dialer.Dial("tcp", address)
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error dialing server %s using proxy %s: %v\n", address, proxy.address, err)
 			proxy.fail()
 			i++
 			continue
 		}
 
+		log.Printf("Successfully connected to server %s using proxy %s. Starting to send data...\n", address, proxy.address)
 		for {
 			_, err := conn.Write(data)
 			if err != nil {
-				log.Println(err)
+				log.Printf("Error writing data to server %s using proxy %s: %v\n", address, proxy.address, err)
 				break
 			}
 		}
 
+		log.Printf("Closing connection to server %s using proxy %s...\n", address, proxy.address)
 		conn.Close()
 	}
 }
