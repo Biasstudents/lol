@@ -1,23 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"net"
 	"bufio"
+	"fmt"
+	"log"
+	"net"
 	"os"
 	"strconv"
 	"sync"
-	"log"
 )
 
 func stressServer(address string, wg *sync.WaitGroup, data []byte) {
 	defer wg.Done()
 
 	for {
-		conn, _ := net.Dial("tcp", address)
+		conn, err := net.Dial("tcp", address)
+		if err != nil {
+			log.Println("Error connecting:", err)
+			continue // Continue to the next iteration to retry connecting
+		}
 
-		for {
-			conn.Write(data)
+		_, err = conn.Write(data)
+		if err != nil {
+			log.Println("Error writing to connection:", err)
 		}
 
 		conn.Close()
