@@ -8,7 +8,10 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 )
+
+var totalDataSent int64 = 0
 
 func stressServer(address string, wg *sync.WaitGroup, data []byte) {
 	defer wg.Done()
@@ -20,12 +23,24 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte) {
 			continue // Continue to the next iteration to retry connecting
 		}
 
-		_, err = conn.Write(data)
+		n, err := conn.Write(data)
 		if err != nil {
 			log.Println("Error writing to connection:", err)
 		}
 
+		totalDataSent += int64(n)
+
 		conn.Close()
+	}
+}
+
+func printBandwidth() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		fmt.Printf("\rTotal data sent: %d bytes", totalDataSent)
+		totalDataSent = 0
 	}
 }
 
@@ -55,6 +70,8 @@ func main() {
 		wg.Add(1)
 		go stressServer(address, &wg, data) // Start a new goroutine
 	}
+
+	go printBandwidth()
 
 	wg.Wait()
 }
