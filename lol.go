@@ -12,6 +12,7 @@ import (
 )
 
 var totalDataSent int64 = 0
+var debug = false // Set this to true if you want to see error messages
 
 func stressServer(address string, wg *sync.WaitGroup, data []byte) {
 	defer wg.Done()
@@ -19,12 +20,14 @@ func stressServer(address string, wg *sync.WaitGroup, data []byte) {
 	for {
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
-			log.Println("Error connecting:", err)
+			if debug {
+				log.Println("Error connecting:", err)
+			}
 			continue // Continue to the next iteration to retry connecting
 		}
 
 		n, err := conn.Write(data)
-		if err != nil {
+		if err != nil && debug {
 			log.Println("Error writing to connection:", err)
 		}
 
@@ -39,7 +42,16 @@ func printBandwidth() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		fmt.Printf("\rTotal data sent: %d bytes", totalDataSent)
+		switch {
+		case totalDataSent > 1<<30:
+			fmt.Printf("\rTotal data sent: %.2f GB", float64(totalDataSent)/(1<<30))
+		case totalDataSent > 1<<20:
+			fmt.Printf("\rTotal data sent: %.2f MB", float64(totalDataSent)/(1<<20))
+		case totalDataSent > 1<<10:
+			fmt.Printf("\rTotal data sent: %.2f KB", float64(totalDataSent)/(1<<10))
+		default:
+			fmt.Printf("\rTotal data sent: %d bytes", totalDataSent)
+		}
 		totalDataSent = 0
 	}
 }
