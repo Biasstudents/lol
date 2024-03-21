@@ -38,10 +38,13 @@ func stressServer(address string, wg *sync.WaitGroup) {
 		}
 
 		// Send the packet
-		_, err = conn.Write(packet)
+		n, err := conn.Write(packet)
 		if err != nil && debug {
 			log.Println("Error writing to connection:", err)
 		}
+
+		// Update total data sent
+		totalDataSent += int64(n)
 
 		// Send the additional data
 		_, err = conn.Write([]byte{0x01, 0x00})
